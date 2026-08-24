@@ -3,7 +3,7 @@
 - entregaTP1/index.html: Archivo HTML de la aplicación web.
 
 ## Como obtener el proyecto desde github?
-- hacer git clone https://github.com/keeganian/TP-programacion-web/tree/tp1/EntregaTP1 dentro de la carpeta donde quieras que se guarde el proyecto.
+- hacer git clone https://github.com/keeganian/TP-programacion-web/tree/tp1 dentro de la carpeta donde quieras que se guarde el proyecto.
 
 ## Cómo ejecutar la aplicación
 1. Abrir la terminal en la carpeta raíz del proyecto.

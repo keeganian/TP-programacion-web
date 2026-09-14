@@ -1,0 +1,128 @@
+====================================================================
+DOCUMENTACIÓN DE PERSISTENCIA Y TESTING - TP2
+====================================================================
+
+1. DESCRIPCIÓN GENERAL DE LA PERSISTENCIA
+--------------------------------------------------------------------
+Para la persistencia se utiliza PostgreSQL junto con la herramienta sqlc.
+En lugar de recurrir a un ORM tradicional, sqlc toma esquemas de tablas 
+y consultas SQL estándar para compilar código Go nativo y fuertemente tipado. 
+Esto garantiza que los errores de sintaxis en consultas o tipos de datos 
+se detecten en tiempo de compilación y no en ejecución.
+
+La conexión y ejecución en Go se gestiona mediante la interfaz nativa 
+'database/sql' asistida por el driver físico de PostgreSQL 'github.com/lib/pq'.
+
+
+2. ESTRUCTURA Y EXPLICACIÓN DE ARCHIVOS
+--------------------------------------------------------------------
+
+* db/schema/schema.sql
+  Define la estructura de las tablas en la base de datos PostgreSQL:
+  - Tabla 'destinos': almacena información de viajes.
+    - id: identificador numérico autoincremental (PRIMARY KEY).
+    - nombre_lugar: texto con el destino turístico (NOT NULL).
+    - fecha_viaje: marca temporal de la fecha de visita (NOT NULL).
+    - valoracion: puntuación numérica (admite nulos).
+    - descripcion: detalle opcional (admite nulos).
+
+* users.sql (o db/query/users.sql)
+  Contiene las consultas SQL puras con anotaciones de sqlc:
+  - CreateDestino (:one): inserta un destino y retorna la fila creada.
+  - GetDestino (:one): busca un destino específico por ID.
+  - ListDestinos (:many): devuelve todos los destinos ordenados por fecha.
+  - UpdateDestino (:exec): actualiza los campos de un registro por ID.
+  - DeleteDestino (:exec): elimina un registro según su ID.
+
+* sqlc.yaml
+  Archivo de configuración de sqlc. Define el motor de base de datos (postgresql), 
+  dónde leer el esquema, las queries y la ruta del paquete destino para 
+  el código generado en Go (db/sqlc).
+
+* db/sqlc/models.go (Generado por sqlc)
+  Librerías / Paquetes importados:
+  - database/sql: provisto por la biblioteca estándar de Go; expone los tipos 
+    'sql.NullInt32' y 'sql.NullString' usados para mapear columnas de la base 
+    que permiten valores NULL.
+  - time: provisto por Go para manejar tipos de fechas y marcas de tiempo 
+    ('time.Time') correspondientes al campo 'fecha_viaje'.
+  Contenido: contiene los structs de Go ('Destino') generados a partir de 
+  las tablas de 'schema.sql'.
+
+* db/sqlc/db.go (Generado por sqlc)
+  Librerías / Paquetes importados:
+  - context: paquete estándar para propagar tiempos límite (deadlines), 
+    cancelaciones y valores en operaciones concurrentes o de red.
+  - database/sql: define las interfaces y métodos de base de datos nativos.
+  Contenido: declara la interfaz DBTX (que exige métodos como ExecContext 
+  y QueryContext) y el struct Queries junto a la función New() para 
+  instanciar el acceso a datos.
+
+* db/sqlc/users.sql.go (Generado por sqlc)
+  Librerías / Paquetes importados:
+  - context: controla la cancelación o timeouts de cada consulta ejecutada.
+  - database/sql: provee la estructura y manejo de resultados ('sql.Row', 'sql.Rows').
+  Contenido: implementa las funciones de acceso a datos generadas 
+  (CreateDestino, GetDestino, ListDestinos, UpdateDestino, DeleteDestino), 
+  traduciendo llamadas Go a sentencias preparadas de SQL.
+
+* db/sqlc/db_test.go
+  Librerías / Paquetes importados:
+  - context: gestiona el ciclo de vida y timeouts de las operaciones del test.
+  - database/sql: maneja el pool de conexiones, apertura con 'sql.Open' y 
+    los errores estándar como 'sql.ErrNoRows'.
+  - testing: paquete oficial de Go para escribir pruebas automatizadas; provee 
+    estructuras como '*testing.T' y métodos de aserción ('t.Fatalf', 't.Cleanup').
+  - time: manipula fechas para poblar el campo 'FechaViaje'.
+  - github.com/lib/pq: driver de terceros que implementa el protocolo de red 
+    propio de PostgreSQL para que 'database/sql' se comunique con el motor.
+  Contenido y funcionamiento:
+  - setupTestDB: abre la conexión con el contenedor temporal, ejecuta 
+    'db.Ping()' para validar disponibilidad física y registra con 't.Cleanup' 
+    el cierre del pool al finalizar. Retorna la instancia de '*Queries'.
+  - TestDestinosCRUD: prueba de integración integral que valida el flujo:
+    1) Create: inserta un registro usando tipos 'sql.NullInt32' y 'sql.NullString'.
+    2) Read: recupera el registro por ID con GetDestino y valida su consistencia.
+    3) List: ejecuta ListDestinos para comprobar la lectura masiva.
+    4) Update: modifica campos del registro existente y valida la persistencia.
+    5) Delete: remueve la fila con DeleteDestino y verifica que una búsqueda 
+       posterior falle con 'sql.ErrNoRows'.
+
+* Makefile
+  Automatiza el ciclo de vida del entorno y pruebas mediante comandos de Docker:
+  - db-up: borra instancias previas, levanta un contenedor PostgreSQL en 
+    segundo plano, espera que acepte conexiones con 'pg_isready' y carga 'schema.sql'.
+  - test: ejecuta 'db-up', corre las pruebas con 'go test ./db/sqlc' y dispara 'db-down'.
+  - db-down: detiene y borra el contenedor junto con sus volúmenes asociados.
+
+* main.go
+Go requiere la presencia de un paquete main con su respectiva función main() para 	 reconcoer al directorio raíz como un paquete ejecutable (binary package) al invocar herramientas de compilación como go build ..
+
+3. CONCEPTOS Y HERRAMIENTAS CLAVE UTILIZADAS
+--------------------------------------------------------------------
+
+* database/sql vs github.com/lib/pq:
+  'database/sql' es únicamente una interfaz genérica que abstrae motores relacionales. 
+  No implementa la comunicación de bajo nivel de PostgreSQL. Por eso se importa 
+  '_ "github.com/lib/pq"', cuyo bloque 'init()' registra internamente el driver 
+  bajo el identificador "postgres" ante 'database/sql'.
+
+* Mapeo de puertos en Docker (-p 5433:5432):
+  El motor PostgreSQL escucha por defecto en el puerto 5432 interno del contenedor. 
+  Para evitar colisiones con instancias locales de PostgreSQL que ya ocupen el 5432 
+  del host, se mapea un puerto externo libre (5433) al 5432 interno. La cadena 
+  de conexión del test ('connStr') apunta a 'localhost:5433'.
+
+* Manejo de valores anulables con sql.Null*:
+  Los tipos nativos de Go ('int', 'string') no pueden ser asignados a 'nil'. 
+  Si una columna de PostgreSQL no tiene la restricción NOT NULL (como 'valoracion' 
+  o 'descripcion'), puede devolver NULL. 'sqlc' mapea estas columnas a structs 
+  'sql.NullInt32' y 'sql.NullString', que encapsulan el valor real y una bandera 
+  booleana 'Valid' para indicar si el dato existe o si representa un NULL.
+
+* Estrategia de Testing de Integración:
+  En lugar de aislar la capa de datos mediante mocks simulados, las pruebas se 
+  ejecutan contra una base de datos real efímera levantada en Docker. Esto valida 
+  las consultas SQL reales, las restricciones de integridad y la serialización 
+  de tipos de datos de extremo a extremo.
+====================================================================

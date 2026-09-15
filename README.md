@@ -18,7 +18,7 @@ Instrucciones de ejecución
 Todo el ciclo de vida de los tests (levantar la base, cargar esquema, probar y limpiar) se ejecuta con un único comando:
 
 Clonar el repositorio y situarse en la branch de entrega
-```bash
+bash:
 git clone https://github.com/keeganian/TP-programacion-web.git
 cd TP-programacion-web
 git checkout tp2
@@ -30,7 +30,6 @@ Fase de inicio y carga de esquema:
 
 La terminal espera la disponibilidad del motor y muestra:
 
-Plaintext
 /var/run/postgresql:5432 - accepting connections
 Cargando esquema en la base de datos...
 CREATE TABLE
@@ -40,7 +39,6 @@ Se inicia la prueba unitaria: === RUN   TestDestinosCRUD.
 
 Concluye de forma satisfactoria marcando:
 
-Plaintext
 --- PASS: TestDestinosCRUD (xs)
 PASS
 ok  WebEntregable/db/sqlc  xs
@@ -48,7 +46,6 @@ Fase de limpieza posterior:
 
 Se detiene y borra el contenedor temporal junto con sus volúmenes:
 
-Plaintext
 Borrando contenedor y volúmenes de prueba...
 tp2-postgres-test
 Criterio de validación: El resultado es correcto si la prueba finaliza con PASS, el paquete reporta estado ok, y la terminal retorna al prompt sin advertencias de fallo ni contenedores residuales activos.

@@ -30,6 +30,12 @@ El proyecto utiliza un archivo de configuracion de entorno (.env). No es necesar
 
 ## Instrucciones de Ejecucion y Pruebas
 
+Para clonar el branch, hay que ejecutar en la terminal el comando: 
+
+```
+git clone --branch tp3 --single-branch https://github.com/keeganian/TP-programacion-web.git
+
+```
 Para levantar el entorno completo, compilar la aplicacion, iniciar el servidor de manera automatizada y gestionar la limpieza de contenedores, utilice el siguiente comando principal:
 
 ```

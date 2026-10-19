@@ -1,0 +1,84 @@
+====================================================================
+DOCUMENTACIÓN DE PERSISTENCIA Y TESTING - TP3
+====================================================================
+
+1. DESCRIPCIÓN GENERAL DE LA PERSISTENCIA Y ARQUITECTURA WEB
+--------------------------------------------------------------------
+Para la persistencia se utiliza PostgreSQL junto con la herramienta sqlc, generando código Go nativo y fuertemente tipado a partir de esquemas y consultas SQL estándar. 
+
+Además, en el TP3 se integra una API REST construida con el paquete estándar 'net/http' de Go, la cual expone endpoints HTTP para gestionar el CRUD completo de usuarios, categorías y destinos turísticos, conectando la capa web directamente con la capa de datos generada por sqlc y respetando restricciones de claves foráneas.
+
+La conexión y ejecución en Go se gestiona mediante la interfaz nativa 'database/sql' asistida por el driver físico de PostgreSQL 'github.com/lib/pq'.
+
+
+2. ESTRUCTURA Y EXPLICACIÓN DE ARCHIVOS
+--------------------------------------------------------------------
+
+- db/schema/schema.sql
+  Define la estructura de las tablas relacionales en la base de datos PostgreSQL:
+  - Tabla 'usuarios': almacena la información de los usuarios registrados.
+    - id: identificador numérico autoincremental (PRIMARY KEY).
+    - nombre: texto con el nombre del usuario (NOT NULL).
+    - email: correo electrónico único (UNIQUE NOT NULL).
+  - Tabla 'categorias': define las categorías clasificatorias de viajes.
+    - id: identificador numérico autoincremental (PRIMARY KEY).
+    - nombre: nombre único de la categoría (UNIQUE NOT NULL).
+  - Tabla 'destinos': almacena información de viajes relacionada con usuarios y categorías.
+    - id: identificador numérico autoincremental (PRIMARY KEY).
+    - nombre_lugar: texto con el destino turístico (NOT NULL).
+    - fecha_viaje: marca temporal de la fecha de visita (NOT NULL).
+    - valoracion: puntuación numérica entre 1 y 10 (admite nulos).
+    - descripcion: detalle opcional (admite nulos).
+    - categoria_id: clave foránea referenciando a categorias(id) ON DELETE SET NULL.
+    - usuario_id: clave foránea referenciando a usuarios(id) ON DELETE CASCADE.
+
+- db/query/users.sql (o archivos de consultas sqlc)
+  Contiene las consultas SQL puras con anotaciones de sqlc para las tres entidades:
+  - CreateUsuario, GetUsuario, ListUsuarios, UpdateUsuario, DeleteUsuario.
+  - CreateCategoria, GetCategoria, ListCategorias, UpdateCategoria, DeleteCategoria.
+  - CreateDestino, GetDestino, ListDestinos, UpdateDestino, DeleteDestino.
+
+- sqlc.yaml
+  Archivo de configuración de sqlc. Define el motor de base de datos (postgresql), dónde leer el esquema, las queries y la ruta del paquete destino para el código generado en Go (db/sqlc).
+
+- db/sqlc/* (Generado por sqlc: models.go, db.go, users.sql.go)
+  Contiene el código Go fuertemente tipado para interactuar con la base de datos, manejando tipos anulables ('sql.NullInt32', 'sql.NullString') y propagación de contextos.
+
+- main.go
+  Punto de entrada de la aplicación web y servidor HTTP:
+  - Inicializa la conexión a la base de datos PostgreSQL leyendo las credenciales mediante variables de entorno y maneja pings de verificación.
+  - Configura el enrutador HTTP con el multiplexor estándar ('http.HandleFunc') para las rutas de '/destinos', '/usuarios' y '/categorias'.
+  - Implementa los handlers modulares para manejar las peticiones HTTP ('GET', 'POST', 'PUT', 'DELETE'), decodificando JSON y llamando a los métodos de sqlc.
+
+- .env y .env.example
+  - .env.example: plantilla que define las variables de entorno necesarias (host, puerto, usuario, contraseña, base de datos).
+  - .env: archivo de configuración local generado automáticamente por el Makefile a partir de la plantilla.
+
+- Makefile
+  Automatiza el ciclo de vida del entorno, la creación del archivo de configuración '.env', la compilación y la ejecución de la API mediante contenedores Docker:
+  - .env: regla automática que clona '.env.example' si no existe.
+  - generate: ejecuta 'sqlc generate' asegurando la actualización de los modelos de Go.
+  - build: compila la aplicación Go dentro de la carpeta temporal 'tmp/'.
+  - db-up: limpia contenedores previos, levanta un contenedor PostgreSQL temporal en segundo plano, espera que acepte conexiones con 'pg_isready' y aplica el esquema.
+  - db-down: detiene y borra el contenedor junto con sus volúmenes asociados.
+  - test-api: compila la aplicación, levanta la base de datos temporal, carga el esquema y deja el servidor listo para recibir peticiones mediante una función trap, ya que la función go run main.go se ejecuta al hacer sudo make test-api, y para cortar necesita hacer ctrl+c. La funcion de trap es que ese ctrl+c no corte la ejecucion general, sino solamente la del go run main.go, y de esta manera, logra limpiarlos los docker al finalizar.
+
+- request.bash
+  Script automatizado en Bash que realiza pruebas funcionales de la API utilizando 'curl', validando de punta a punta la creación de usuarios y categorías, y operando sobre el CRUD completo de destinos (POST, GET de colección, GET por ID, PUT y DELETE).
+
+
+3. CONCEPTOS Y HERRAMIENTAS CLAVE UTILIZADAS
+--------------------------------------------------------------------
+
+- database/sql vs github.com/lib/pq:
+  'database/sql' es la interfaz genérica de Go para bases de datos relacionales, mientras que '_ "github.com/lib/pq"' registra internamente el driver físico para PostgreSQL.
+
+- Automatización de Variables de Entorno (.env):
+  Se implementó una regla en el Makefile para asegurar la creación automática del archivo '.env' a partir de '.env.example', cumpliendo con los estándares de entrega y buenas prácticas de configuración.
+
+- Manejo de valores anulables con sql.Null*:
+  Los tipos 'sql.NullInt32' y 'sql.NullString' encapsulan los datos opcionales de la base de datos junto con una bandera booleana 'Valid' para manejar de forma segura los valores NULL en la API.
+
+- Pruebas y Validación de Endpoints de la API:
+  El entorno de testing se apoya en Docker para desplegar una base de datos efímera y limpia, permitiendo verificar tanto la persistencia con sqlc como el correcto funcionamiento de los endpoints HTTP relacionados mediante herramientas y scripts automatizados ('request.bash').
+====================================================================

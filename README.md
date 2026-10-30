@@ -38,7 +38,7 @@ git clone --branch tp3 --single-branch https://github.com/keeganian/TP-programac
 Para levantar el entorno completo, compilar la aplicacion, iniciar el servidor de manera automatizada y gestionar la limpieza de contenedores, utilice el siguiente comando principal:
 
 ```
-sudo make test-api
+make test-api
 ```
 
 

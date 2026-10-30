@@ -46,10 +46,17 @@ db-down:
 	@echo "Borrando contenedor y volúmenes de prueba..."
 	@docker rm -f -v $(DB_CONTAINER) 2>/dev/null || true
 
-# Ejecuta el flujo completo y limpia Docker una sola vez (por Ctrl+C o salida normal)
+# Ejecuta la base de datos, el servidor en segundo plano, corre las validaciones y apaga todo
 test-api: db-up build
-	@echo "Iniciando servidor Go (Presiona Ctrl+C para detener)..."
-	@trap '$(MAKE) db-down' INT; ./tmp/$(APP_NAME); $(MAKE) db-down
+	@echo "Iniciando servidor para tests..."
+	@./tmp/$(APP_NAME) & SERVER_PID=$$!; \
+	sleep 2; \
+	chmod +x request.bash; \
+	./request.bash; \
+	TEST_RESULT=$$?; \
+	kill $$SERVER_PID 2>/dev/null || true; \
+	$(MAKE) db-down; \
+	exit $$TEST_RESULT
 
 clean:
 	@rm -rf tmp

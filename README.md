@@ -41,10 +41,6 @@ Para levantar el entorno completo, compilar la aplicacion, iniciar el servidor d
 sudo make test-api
 ```
 
-### Probar los Endpoints de la API
 
-Con el servidor corriendo, en una terminal aparte, puede ejecutar el script de pruebas automatizado provisto con peticiones HTTP reales (POST, GET, PUT, DELETE) para las entidades de Usuarios, Categorias y Destinos:
+Con este comando, el servidor queda corriendo en la terminal y ejecuta las pruebas CRUD automáticamente, utilizando ./request.bash, indicando si pasa el testeo o no. Finalizada la ejecución, cierra todos los docker.
 
-```
-./request.bash
-```

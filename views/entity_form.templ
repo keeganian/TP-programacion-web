@@ -1,0 +1,63 @@
+package views
+
+import (
+	"TP-programacion-web/db/sqlc"
+	"strconv"
+)
+
+templ EntityForm(categorias []db.Categoria, loggedUser *db.Usuario, usuarios []db.Usuario) {
+	<!-- Solo se muestra el registro de usuario si NO hay sesión iniciada -->
+	if loggedUser == nil {
+		<details open>
+			<summary><strong>Crear Nuevo Usuario / Registrarse</strong></summary>
+			<form action="/usuarios" method="POST">
+				<label for="nombre">Nombre Completo:</label>
+				<input type="text" id="nombre" name="nombre" required placeholder="Ej: Leandro Boroni"/>
+
+				<label for="email">Email de Acceso:</label>
+				<input type="email" id="email" name="email" required placeholder="ejemplo@email.com"/>
+
+				<button type="submit">Registrar Usuario</button>
+			</form>
+		</details>
+	} else {
+		<!-- Formulario para Agregar Reseña (Solo logueados) -->
+		<details open>
+			<summary><strong>Agregar Nueva Reseña de Viaje</strong></summary>
+			<form action="/destinos" method="POST">
+				<label for="nombre_lugar">Lugar / Destino:</label>
+				<input type="text" id="nombre_lugar" name="nombre_lugar" required placeholder="Ej: Barcelona"/>
+
+				<label for="fecha_viaje">Fecha de Viaje:</label>
+				<input type="date" id="fecha_viaje" name="fecha_viaje" required/>
+
+				<label for="valoracion">Valoración (1 al 10):</label>
+				<input type="number" id="valoracion" name="valoracion" min="1" max="10" placeholder="10"/>
+
+				<label for="descripcion">Comentarios / Reseña:</label>
+				<textarea id="descripcion" name="descripcion" placeholder="Escribí tu experiencia..."></textarea>
+
+				<label for="categoria_id">Categoría:</label>
+				<select id="categoria_id" name="categoria_id">
+					<option value="" selected>Sin categoría</option>
+					for _, c := range categorias {
+						<option value={ strconv.FormatInt(int64(c.ID), 10) }>{ c.Nombre }</option>
+					}
+				</select>
+
+				<button type="submit">Guardar Reseña</button>
+			</form>
+		</details>
+
+		<!-- Crear Categoría -->
+		<details>
+			<summary><strong>Crear Nueva Categoría</strong></summary>
+			<form action="/categorias" method="POST">
+				<label for="nombre_cat">Nombre de Categoría:</label>
+				<input type="text" id="nombre_cat" name="nombre" required/>
+
+				<button type="submit">Guardar Categoría</button>
+			</form>
+		</details>
+	}
+}

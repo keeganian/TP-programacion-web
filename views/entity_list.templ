@@ -1,0 +1,105 @@
+package views
+
+import (
+	"TP-programacion-web/db/sqlc"
+	"strconv"
+)
+
+templ EntityList(destinos []db.Destino, misResenas []db.Destino, usuarios []db.Usuario, categorias []db.Categoria, user *db.Usuario, filtroLugar string) {
+	<!-- Tabla de Mis Reseñas (Usuario Autenticado) -->
+	if user != nil {
+		<h3>Mis Reseñas Publicadas</h3>
+		if len(misResenas) == 0 {
+			<p>Aún no cargaste ninguna reseña.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>Lugar</th>
+						<th>Fecha</th>
+						<th>Valoración</th>
+						<th>Descripción</th>
+						<th>Acción</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, d := range misResenas {
+						<tr>
+							<td>{ d.NombreLugar }</td>
+							<td>{ d.FechaViaje.Format("2006-01-02") }</td>
+							<td>
+								if d.Valoracion.Valid {
+									{ strconv.FormatInt(int64(d.Valoracion.Int32), 10) }/10
+								} else {
+									-
+								}
+							</td>
+							<td>
+								if d.Descripcion.Valid {
+									{ d.Descripcion.String }
+								} else {
+									-
+								}
+							</td>
+							<td>
+								<form action="/destinos/delete" method="POST" style="margin: 0;">
+									<input type="hidden" name="id" value={ strconv.FormatInt(int64(d.ID), 10) }/>
+									<button type="submit" class="contrast" style="padding: 0.2rem 0.5rem; margin: 0;">Eliminar</button>
+								</form>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+		<hr/>
+	}
+
+	<!-- Buscador y Tabla General -->
+	<h2>Explorar Destinos y Reseñas</h2>
+
+	<form method="GET" action="/" style="display: flex; gap: 10px; margin-bottom: 20px;">
+		<input type="text" name="lugar" value={ filtroLugar } placeholder="Buscar por ciudad o lugar (ej: Barcelona)..." style="margin: 0;"/>
+		<button type="submit" style="margin: 0; width: auto;">Buscar</button>
+		if filtroLugar != "" {
+			<a href="/" role="button" class="secondary" style="margin: 0;">Limpiar</a>
+		}
+	</form>
+
+	if len(destinos) == 0 {
+		<p>No se encontraron reseñas para el destino buscado.</p>
+	} else {
+		<table>
+			<thead>
+				<tr>
+					<th>Lugar</th>
+					<th>Fecha</th>
+					<th>Valoración</th>
+					<th>Descripción</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, d := range destinos {
+					<tr>
+						<td><strong>{ d.NombreLugar }</strong></td>
+						<td>{ d.FechaViaje.Format("2006-01-02") }</td>
+						<td>
+							if d.Valoracion.Valid {
+								{ strconv.FormatInt(int64(d.Valoracion.Int32), 10) }/10
+							} else {
+								-
+							}
+						</td>
+						<td>
+							if d.Descripcion.Valid {
+								{ d.Descripcion.String }
+							} else {
+								-
+							}
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}

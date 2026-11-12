@@ -1,0 +1,56 @@
+package views
+
+import "TP-programacion-web/db/sqlc"
+
+templ Layout(title string, destinos []db.Destino, misResenas []db.Destino, usuarios []db.Usuario, categorias []db.Categoria, user *db.Usuario, filtroLugar string) {
+	<!DOCTYPE html>
+	<html lang="es">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+			<style>
+				body {
+					background-image: url('/static/fondo.jpg');
+					background-size: cover;
+					background-position: center;
+					background-repeat: no-repeat;
+					background-attachment: fixed;
+				}
+			</style>
+		</head>
+		<body>
+			<main class="container">
+				<header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+					<h1>De boca en boca, de mapa en mapa</h1>
+					if user != nil {
+						<div>
+							<span>Hola, <strong>{ user.Nombre }</strong> ({ user.Email })</span>
+							<form action="/logout" method="POST" style="display: inline; margin-left: 10px;">
+								<button type="submit" class="secondary" style="padding: 0.2rem 0.5rem; margin: 0;">Cerrar Sesión</button>
+							</form>
+						</div>
+					} else {
+						<form action="/login" method="POST" style="display: flex; gap: 10px; margin: 0; align-items: center;">
+							<input type="email" name="email" placeholder="Ingresá tu email para iniciar sesión" required style="margin: 0;"/>
+							<button type="submit" style="margin: 0; padding: 0.3rem 0.8rem;">Ingresar</button>
+						</form>
+					}
+				</header>
+
+				<hr/>
+
+				<section>
+					@EntityForm(categorias, user, usuarios)
+				</section>
+
+				<hr/>
+
+				<section>
+					@EntityList(destinos, misResenas, usuarios, categorias, user, filtroLugar)
+				</section>
+			</main>
+		</body>
+	</html>
+}

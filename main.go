@@ -21,11 +21,7 @@ func main() {
 	queries := dbSqlc.New(conn)
 	serverHandler := handlers.NewServerHandler(queries)
 
-	// 3. Archivos estáticos
-	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
-
-	// 4. Registrar rutas HTTP redirigidas a los métodos del Handler
+	// 3. Registrar rutas HTTP redirigidas a los métodos del Handler
 	http.HandleFunc("/", serverHandler.HandleIndex)
 
 	// Rutas de Sesión (Login / Logout)

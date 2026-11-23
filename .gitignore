@@ -1,0 +1,5 @@
+# Ignorar todos los archivos .env y sus variantes
+.env
+.env.*
+# Excepción: Mantener la plantilla con variables vacías
+!.env.example   

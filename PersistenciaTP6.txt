@@ -1,0 +1,99 @@
+====================================================================
+DOCUMENTACIÓN DE PERSISTENCIA - TP6 (INTERFACES REACTIVAS CON HTMX)
+====================================================================
+
+1. DESCRIPCIÓN GENERAL DE LA PERSISTENCIA Y ARQUITECTURA WEB
+--------------------------------------------------------------------
+Para la persistencia se utiliza PostgreSQL junto con la herramienta sqlc, generando código Go nativo y fuertemente tipado a partir de esquemas y consultas SQL estándar[cite: 41].
+
+Además, en este proyecto se integra una arquitectura web modular basada en componentes UI con 'templ', controladores HTTP en un paquete dedicado ('handlers') e interactividad dinámica mediante HTMX[cite: 37, 41]. Se exponen rutas para gestionar el registro de usuarios, manejo de sesiones por cookies, gestión de categorías y el CRUD completo de destinos turísticos con soporte de búsqueda, actualizando fragmentos de HTML de forma parcial sin recargas completas de página[cite: 37, 41]. La aplicación conecta la capa web directamente con la capa de datos generada por sqlc respetando restricciones de claves foráneas[cite: 41].
+
+La conexión y ejecución en Go se gestiona mediante la interfaz nativa 'database/sql' asistida por el driver físico de PostgreSQL 'github.com/lib/pq', encapsulada en un módulo de conexión dedicado ('db/connect.go')[cite: 41].
+
+
+2. ESTRUCTURA Y EXPLICACIÓN DE ARCHIVOS
+--------------------------------------------------------------------
+
+- db/schema/schema.sql
+  Define la estructura de las tablas relacionales en la base de datos PostgreSQL[cite: 41]:
+  - Tabla 'usuarios': almacena la información de los usuarios registrados[cite: 41].
+    - id: identificador numérico autoincremental (PRIMARY KEY)[cite: 41].
+    - nombre: texto con el nombre del usuario (NOT NULL)[cite: 41].
+    - email: correo electrónico único (UNIQUE NOT NULL)[cite: 41].
+    - created_at: marca temporal de creación[cite: 41].
+  - Tabla 'categorias': define las categorías clasificatorias de viajes[cite: 41].
+    - id: identificador numérico autoincremental (PRIMARY KEY)[cite: 41].
+    - nombre: nombre único de la categoría (UNIQUE NOT NULL)[cite: 41].
+  - Tabla 'destinos': almacena información de viajes relacionada con usuarios y categorías[cite: 41].
+    - id: identificador numérico autoincremental (PRIMARY KEY)[cite: 41].
+    - nombre_lugar: texto con el destino turístico (NOT NULL)[cite: 41].
+    - fecha_viaje: marca temporal de la fecha de visita (NOT NULL)[cite: 41].
+    - valoracion: puntuación numérica entre 1 y 10 (admite nulos)[cite: 41].
+    - descripcion: detalle opcional (admite nulos)[cite: 41].
+    - categoria_id: clave foránea referenciando a categorias(id) ON DELETE SET NULL[cite: 41].
+    - usuario_id: clave foránea referenciando a usuarios(id) ON DELETE CASCADE[cite: 41].
+    - created_at: marca temporal de creación[cite: 41].
+
+- db/queries/users.sql (o archivos de consultas sqlc)
+  Contiene las consultas SQL puras con anotaciones de sqlc para las tres entidades[cite: 41]:
+  - CreateUsuario, GetUsuario, ListUsuarios, UpdateUsuario, DeleteUsuario, GetUsuarioByEmail[cite: 41].
+  - CreateCategoria, GetCategoria, ListCategorias, UpdateCategoria, DeleteCategoria[cite: 41].
+  - CreateDestino, GetDestino, ListDestinos, UpdateDestino, DeleteDestino, SearchDestinosByLugar[cite: 41].
+
+- sqlc.yaml
+  Archivo de configuración de sqlc. Define el motor de base de datos (postgresql), dónde leer el esquema, las queries y la ruta del paquete destino para el código generado en Go (db/sqlc)[cite: 41].
+
+- db/sqlc/* (Generado por sqlc: models.go, db.go, users.sql.go)
+  Contiene el código Go fuertemente tipado para interactuar con la base de datos, manejando tipos anulables ('sql.NullInt32', 'sql.NullString') y propagación de contextos[cite: 41].
+
+- db/connect.go
+  Módulo encargado de centralizar la apertura de la conexión a la base de datos PostgreSQL mediante 'sql.Open' y verificación con 'Ping', leyendo las variables de entorno de configuración[cite: 41].
+
+- handlers/handler.go
+  Controlador modular de la aplicación web[cite: 41]:
+  - Gestiona la autenticación de usuarios basada en cookies ('user_id') mediante 'getLoggedUser', 'HandleLogin' y 'HandleLogout'[cite: 41].
+  - Orquesta la vista principal ('HandleIndex') detectando peticiones parciales HTMX ('HX-Request') para devolver únicamente el fragmento de resultados filtrados por lugar ('SearchDestinosByLugar') o la vista completa[cite: 37, 41].
+  - Implementa los manejadores para procesar formularios y peticiones AJAX de creación de destinos y categorías devolviendo fragmentos HTML actualizados ('EntityList' y 'EntityForm'), así como el borrado dinámico de destinos ('HandleDeleteDestino') respondiendo con estado 200 OK vacío[cite: 37, 38, 41].
+
+- views/*.templ (Plantillas Templ)
+  Define la interfaz de usuario en componentes Go fuertemente tipados utilizando la librería Templ, estilos con Pico.css e integración con HTMX[cite: 37, 41]:
+  - Layout.templ: estructura HTML base que incluye la librería HTMX en el '<head>', barra de navegación, formularios de inicio de sesión y contenedores identificados ('#form-section' y '#entity-list-container') para reemplazos parciales[cite: 37, 41].
+  - EntityForm.templ: formularios para registro de usuarios, creación de reseñas ('hx-post="/destinos"') y creación de categorías ('hx-post="/categorias"') con actualización dinámica del DOM[cite: 37, 41].
+  - EntityList.templ: tablas interactivas para visualizar los destinos, filtrar por lugar sin recarga ('hx-get="/"') y gestionar las reseñas propias con eliminación instantánea por fila ('hx-delete="/destinos/{id}"' y 'hx-target="closest tr"')[cite: 37, 38, 41].
+
+- main.go
+  Punto de entrada de la aplicación web y servidor HTTP[cite: 41]:
+  - Conecta a la base de datos utilizando 'db.ConnectDB()'[cite: 41].
+  - Instancia las consultas de sqlc e inicializa el enrutador de controladores ('handlers.NewServerHandler')[cite: 41].
+  - Registra las rutas HTTP del multiplexor estándar ('http.HandleFunc') con soporte de métodos y parámetros dinámicos ('POST /destinos', 'DELETE /destinos/{id}') para la página principal, sesiones, destinos, usuarios y categorías[cite: 28, 37, 38, 41].
+
+- .env y .env.example
+  - .env.example: plantilla que define las variables de entorno necesarias (host, puerto, usuario, contraseña, base de datos)[cite: 41].
+  - .env: archivo de configuración local generado automáticamente por el Makefile a partir de la plantilla[cite: 41].
+
+- Makefile
+  Automatiza el ciclo de vida del entorno, la creación del archivo de configuración '.env', la compilación y la ejecución de la API mediante contenedores Docker[cite: 41]:
+  - .env: regla automática que clona '.env.example' si no existe[cite: 41].
+  - generate: ejecuta 'sqlc generate' y la compilación de plantillas con 'templ generate' asegurando la actualización del código[cite: 41].
+  - build: compila la aplicación Go dentro de la carpeta temporal 'tmp/'[cite: 41].
+  - db-up: limpia contenedores previos, levanta un contenedor PostgreSQL temporal en segundo plano, espera que acepte conexiones con 'pg_isready' y aplica el esquema[cite: 41].
+  - db-down: detiene y borra el contenedor junto con sus volúmenes asociados[cite: 41].
+  - run-app: levanta la base de datos de manera automatizada con Docker, compila el binario y ejecuta el servidor web en http://localhost:8080, asegurando la limpieza automática mediante 'db-down' al finalizar[cite: 41].
+  - clean: limpia volúmenes y la carpeta temporal 'tmp'[cite: 41].
+
+
+3. CONCEPTOS Y HERRAMIENTAS CLAVE UTILIZADAS
+--------------------------------------------------------------------
+
+- database/sql vs github.com/lib/pq:
+  'database/sql' es la interfaz genérica de Go para bases de datos relacionales, mientras que '_ "github.com/lib/pq"' registra internamente el driver físico para PostgreSQL[cite: 41].
+
+- Automatización de Variables de Entorno (.env):
+  Se implementó una regla en el Makefile para asegurar la creación automática del archivo '.env' a partir de '.env.example', cumpliendo con los estándares de entrega y buenas prácticas de configuración[cite: 41].
+
+- Manejo de valores anulables con sql.Null*:
+  Los tipos 'sql.NullInt32' y 'sql.NullString' encapsulan los datos opcionales de la base de datos junto con una bandera booleana 'Valid' para manejar de forma segura los valores NULL en la API y las consultas de sqlc[cite: 41].
+
+- Interfaces Reactivas con HTMX y Templ:
+  Evolución de la aplicación SSR hacia una experiencia tipo SPA mediante atributos declarativos ('hx-post', 'hx-get', 'hx-delete', 'hx-target', 'hx-swap'), permitiendo que el servidor renderice y devuelva únicamente fragmentos parciales de componentes Templ sin recargar la página completa ni escribir JavaScript personalizado[cite: 37, 38, 41].
+====================================================================
